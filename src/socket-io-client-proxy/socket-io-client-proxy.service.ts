@@ -1,11 +1,15 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ClientProxy, ReadPacket, WritePacket } from '@nestjs/microservices';
 import { SocketIoClientProvider } from 'src/socket-io-client.provider';
+import { CommandStore } from '../command-store';
 
 @Injectable()
 export class SocketIoClientProxyService extends ClientProxy {
   @Inject(SocketIoClientProvider)
   private client: SocketIoClientProvider;
+
+  @Inject(CommandStore)
+  private commandStore: CommandStore;
 
   async connect(): Promise<any> {
     this.client.getSocket();
@@ -37,14 +41,17 @@ export class SocketIoClientProxyService extends ClientProxy {
   publish(
     packet: ReadPacket<any>,
     callback: (packet: WritePacket<any>) => void,
-  ): Function {
-    console.log('message:', packet);
-
-    // In a real-world application, the "callback" function should be executed
-    // with payload sent back from the responder. Here, we'll simply simulate (5 seconds delay)
-    // that response came through by passing the same "data" as we've originally passed in.
-    setTimeout(() => callback({ response: packet.data }), 5000);
-
-    return () => console.log('teardown');
+  ): CallableFunction {
+    const command = this.commandStore.produceNewCommand();
+    command.promise
+      .then((rs: unknown) => callback({ response: rs }))
+      .catch((err) => callback({ err }));
+    this.client.getSocket().emit(packet.pattern, {
+      ...packet.data,
+      requestCustomId: command.id,
+    });
+    return () => {
+      // Do not need anything here
+    };
   }
 }

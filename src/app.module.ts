@@ -5,10 +5,11 @@ import { AppService } from './app.service';
 import { SocketIoListener } from './socket-io.listener';
 import { SocketIoClientProvider } from './socket-io-client.provider';
 import { SocketIoClientProxyService } from './socket-io-client-proxy/socket-io-client-proxy.service';
+import { CommandStore } from './command-store';
 
 @Module({
   imports: [ConfigModule.forRoot()],
   controllers: [AppController, SocketIoListener],
-  providers: [AppService, SocketIoClientProvider, SocketIoClientProxyService],
+  providers: [AppService, SocketIoClientProvider, SocketIoClientProxyService, CommandStore],
 })
 export class AppModule {}
