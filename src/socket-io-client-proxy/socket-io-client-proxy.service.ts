@@ -1,15 +1,18 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ClientProxy, ReadPacket, WritePacket } from '@nestjs/microservices';
+import { Subject } from 'rxjs';
+import { timeout, take } from 'rxjs/operators';
+import { v4 as uuidv4 } from 'uuid';
 import { SocketIoClientProvider } from 'src/socket-io-client.provider';
-import { CommandStore } from '../command-store';
+import { RequestStoreProvider } from '../request-store.provider';
 
 @Injectable()
 export class SocketIoClientProxyService extends ClientProxy {
   @Inject(SocketIoClientProvider)
   private client: SocketIoClientProvider;
 
-  @Inject(CommandStore)
-  private commandStore: CommandStore;
+  @Inject(RequestStoreProvider)
+  private requestStore: RequestStoreProvider;
 
   async connect(): Promise<any> {
     this.client.getSocket();
@@ -42,13 +45,35 @@ export class SocketIoClientProxyService extends ClientProxy {
     packet: ReadPacket<any>,
     callback: (packet: WritePacket<any>) => void,
   ): CallableFunction {
-    const command = this.commandStore.produceNewCommand();
-    command.promise
-      .then((rs: unknown) => callback({ response: rs }))
-      .catch((err) => callback({ err }));
+    let data = packet.data;
+    let requestId = '';
+    if (typeof data.requestId === 'undefined') {
+      requestId = uuidv4();
+      data = {
+        ...packet.data,
+        requestId: requestId,
+      };
+    } else {
+      requestId = packet.data.requestId;
+    }
+    const request$ = new Subject();
+    this.requestStore.store.set(requestId, request$);
+    this.requestStore.store
+      .get(requestId)
+      .pipe(timeout(30000), take(1))
+      .subscribe({
+        error: (err) => callback({ err }),
+        next: (response) => {
+          callback({ response });
+        },
+        complete: () => {
+          this.requestStore.store.delete(requestId);
+        },
+      });
+
     this.client.getSocket().emit(packet.pattern, {
       ...packet.data,
-      requestCustomId: command.id,
+      requestCustomId: requestId,
     });
     return () => {
       // Do not need anything here

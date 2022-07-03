@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CommandStore } from './command-store';
+import { Boostrap } from './boostrap';
 
-describe('CommandStore', () => {
-  let provider: CommandStore;
+describe('Boostrap', () => {
+  let provider: Boostrap;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CommandStore],
+      providers: [Boostrap],
     }).compile();
 
-    provider = module.get<CommandStore>(CommandStore);
+    provider = module.get<Boostrap>(Boostrap);
   });
 
   it('should be defined', () => {

@@ -1,11 +1,10 @@
 import { CustomTransportStrategy, Server } from '@nestjs/microservices';
 import { Socket } from 'socket.io-client';
-import { CommandStore } from './command-store';
 
 export class SocketIoClientStrategy
   extends Server
   implements CustomTransportStrategy {
-  constructor(private client: Socket, private commandStore: CommandStore) {
+  constructor(private client: Socket) {
     super();
   }
 
@@ -23,11 +22,6 @@ export class SocketIoClientStrategy
     this.messageHandlers.forEach((handler, pattern) => {
       this.client.on(pattern, (data: any) => {
         handler(data, this.client);
-
-        // resolve command
-        if (data && typeof data['requestCustomId'] === 'string') {
-          this.commandStore.resolveCommand(data['requestCustomId'], data);
-        }
       });
     });
 
